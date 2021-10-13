@@ -17,71 +17,71 @@ import functions as f
 import implementation as i
 import data.manipulate as m
 from shutil import copyfile
-from datetime import datetime 
-from argparse import ArgumentParser 
+from datetime import datetime
+from argparse import ArgumentParser
+
 
 def main(option, scanner):
-	
-	# Defining paths
-	mod_path = "samples/mod/"
-	evasion_path = "samples/successful/"
-	detected_path = "samples/successful/detected/"
+    # Defining paths
+    mod_path = "samples/mod/"
+    evasion_path = "samples/successful/"
+    detected_path = "samples/successful/detected/"
 
     # Argument parsing & displaying __doc__
-	parser = ArgumentParser(description=__doc__)
-	parser.add_argument("-p", dest="myFilenameVariable", required=True,
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument("-p", dest="myFilenameVariable", required=False,
                         help="number of perturbations to inject", metavar="perturbations")
-	parser.add_argument("-r", dest="myFilenameVariable", required=False,
+    parser.add_argument("-r", dest="myFilenameVariable", required=False,
                         help="number of rounds to run", metavar="rounds")
-	parser.add_argument("-m", dest="myFilenameVariable", required=True,
+    parser.add_argument("-m", dest="myFilenameVariable", required=False,
                         help="number of manipulated files expected", metavar="mutations exp.")
-	parser.add_argument("-t", dest="myFilenameVariable", required=False,
+    parser.add_argument("-t", dest="myFilenameVariable", required=False,
                         help="run until detections are below threshold", metavar="detection thresh.")
+
     parser.add_argument("-dir", dest="directory", required=False,
-						help="base directory for AIMED-RL agent data", metavar="directory")
-	parser.add_argument("--train", dest="train", required=False, const=True,
-						help="AIMED-RL training", metavar="train", nargs="?", type=f.str2bool, default=False)
-	parser.add_argument("--eval", dest="eval", required=False, const=True,
-						help="AIMED-RL evaluation", metavar="eval", nargs="?", type=f.str2bool, default=False)
-	args = parser.parse_args()
+                        help="base directory for AIMED-RL agent data", metavar="directory")
+    parser.add_argument("--train", dest="train", required=False, const=True,
+                        help="AIMED-RL training", metavar="train", nargs="?", type=f.str2bool, default=False)
+    parser.add_argument("--eval", dest="eval", required=False, const=True,
+                        help="AIMED-RL evaluation", metavar="eval", nargs="?", type=f.str2bool, default=False)
+    args = parser.parse_args()
 
-	# Processing input from terminal
-	sample, n, rounds, files_expected, detection_threshold = i.handling_input(sys.argv)
+    # Processing input from terminal
+    #sample, n, rounds, files_expected, detection_threshold = i.handling_input(sys.argv)
 
-	# Convert malware sample into binaries
-	bin_bytes = f.readfile(sample) 
-    
-    # ARMED: Fixed length of sequence -- Using remote/local sandbox (HT/Cuckoo) + remote (VT)/local detection 
-	if option == 'ARMED': 
-		start_ARMED = time()
-		i.armed(bin_bytes, sample, n, rounds, files_expected, detection_threshold, scanner)
-		f.time_me(start_ARMED)
-	
-	# ARMED II: Incremental Iterations of perturbations' sequence -- Using local sandbox + local detection	
-	elif option == 'ARMED2': 
-		start_ARMED2 = time()
-		i.armed2(bin_bytes, sample, n, rounds, files_expected, scanner)
-		f.time_me(start_ARMED2)
-	
-	# AIMED: Fixed length & optimized order of perturbations -- GP with local sandbox + detection
-	elif option == 'AIMED': 
-		size_population = 4 # & n = length_sequence (number of perturbations)
-		start_AIMED = time()
-		i.aimed(bin_bytes, sample, size_population, n, files_expected, scanner) 
-		f.time_me(start_AIMED)		
-	
-	# AIMED-RL: Optimized order of perturbations with Reinforcement Learning
-	elif option == 'AIMED-RL':
-		i.aimed_rl(args.directory, args.train, args.eval)
+    # Convert malware sample into binaries
+    #bin_bytes = f.readfile(sample)
 
-	# COMPARE: Examine intelligent evolutionary algorithm against random (AIMED vs ARMED) 
-	elif option == 'COMPARE': 
-		start_COMPARE = time()
-		i.comparing(bin_bytes, sample, n, rounds, files_expected, detection_threshold, scanner)
-		f.time_me(start_COMPARE)
-		
-		
+    # ARMED: Fixed length of sequence -- Using remote/local sandbox (HT/Cuckoo) + remote (VT)/local detection
+    if option == 'ARMED':
+        start_ARMED = time()
+        i.armed(bin_bytes, sample, n, rounds, files_expected, detection_threshold, scanner)
+        f.time_me(start_ARMED)
+
+    # ARMED II: Incremental Iterations of perturbations' sequence -- Using local sandbox + local detection
+    elif option == 'ARMED2':
+        start_ARMED2 = time()
+        i.armed2(bin_bytes, sample, n, rounds, files_expected, scanner)
+        f.time_me(start_ARMED2)
+
+    # AIMED: Fixed length & optimized order of perturbations -- GP with local sandbox + detection
+    elif option == 'AIMED':
+        size_population = 4  # & n = length_sequence (number of perturbations)
+        start_AIMED = time()
+        i.aimed(bin_bytes, sample, size_population, n, files_expected, scanner)
+        f.time_me(start_AIMED)
+
+    # AIMED-RL: Optimized order of perturbations with Reinforcement Learning
+    elif option == 'AIMED-RL':
+        i.aimed_rl(args.directory, args.train, args.eval)
+
+    # COMPARE: Examine intelligent evolutionary algorithm against random (AIMED vs ARMED)
+    elif option == 'COMPARE':
+        start_COMPARE = time()
+        i.comparing(bin_bytes, sample, n, rounds, files_expected, detection_threshold, scanner)
+        f.time_me(start_COMPARE)
+
+
 if __name__ == '__main__':
-	scanner = 'GradientBoosting'
-	main('ARMED', scanner)
-		
+    scanner = 'GradientBoosting'
+    main('AIMED-RL', scanner)

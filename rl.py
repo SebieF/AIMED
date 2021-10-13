@@ -92,7 +92,7 @@ class MalwareEnv(gym.Env):
             # Update State
             self.feature_space = self.feature_extractor.feature_vector(bytez)
         except Exception as e:  
-            print('Exception raised:', e)
+            print('Exception raised: ', e)
             reward = 0
             episode_over = True
             return np.asarray(self.feature_space), reward, episode_over, \
@@ -125,11 +125,11 @@ class MalwareEnv(gym.Env):
             self.actions_taken.append(action_index)
             self.history[self.current_malware].append(action)
 
-        if self.turns <= self.max_turns / 2:
-            self.current_manipulation = f.rec_mod_files(input_bytes=self.original_bytez,
-                                                        actions=self.actions,
-                                                        chosen_actions=self.actions_taken,
-                                                        inject_perturbation=self.turns-1)
+        self.current_manipulation = f.rec_mod_files(input_bytes=self.original_bytez,
+                                                    actions=self.actions,
+                                                    chosen_actions=self.actions_taken,
+                                                    inject_perturbation=len(self.actions_taken)-1,
+                                                    total_number_perturbations=len(self.actions_taken))
         return f.readfile(self.current_manipulation)
 
     def reset(self):
@@ -158,7 +158,7 @@ class MalwareEnv(gym.Env):
 
     def _calculate_reward(self):
         max_reward = PARAM_DICT["maximum_reward"]  
-        detected, confidence = self.detector_function(self.current_manipulation)
+        detected, confidence = self.detector_function(self.current_manipulation.split("/")[-1])  # Use only man. name
         detected_reward = 0
         if not detected:
             detected_reward = max_reward
@@ -522,19 +522,24 @@ def _create_env(malware_path, malware_detection_function, malware_analysis_funct
 
 def _make_saving_directories():
     if not os.path.isdir(PARAM_DICT["save_report"] + "training_reports/"):
+        if not os.path.isdir(PARAM_DICT["save_report"]):
+            os.mkdir(PARAM_DICT["save_report"])
         os.mkdir(PARAM_DICT["save_report"] + "training_reports/")
+
     date_and_time_now = str(datetime.now()).split(".")[0].replace(" ", "-").replace(":", "-")[0:-3]  # no seconds
 
     directory_logging = PARAM_DICT["save_report"] + "training_reports/" + date_and_time_now + "/"
-    os.makedirs(directory_logging)
+    if not os.path.isdir(directory_logging):
+        os.mkdir(directory_logging)
     directory_agent = PARAM_DICT["save_agent"] + date_and_time_now + "/"
-    os.makedirs(directory_agent)
+    if not os.path.isdir(directory_agent):
+        os.mkdir(directory_agent)
     return directory_logging, directory_agent
 
 
 def train_and_save_agent(malware_detection, malware_analysis):
     directory_logging, directory_agent = _make_saving_directories()
-    malware_detection_function = lambda sample: malware_detection(sample=sample,
+    malware_detection_function = lambda sample: malware_detection(mutation=sample,
                                                                   snapshot=PARAM_DICT["detection_model"],
                                                                   threshold=PARAM_DICT["threshold"])
     env = _create_env(malware_path=PARAM_DICT["malware_path"],
@@ -718,8 +723,8 @@ PARAM_DICT = {
     "save_report": "db/rl/",
     "save_agent": "samples/rl/agent/",
     "malware_path": "samples/malware_set/",
-    "episodes": 1, #1000
-    "detection_model": "LightGBM",
+    "episodes": 2, #1000
+    "detection_model": "GradientBoosting",
     "threshold": 0.9,
     "max_turns": 10,
     "strategy_reset": True,

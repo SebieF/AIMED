@@ -320,7 +320,7 @@ def aimed_rl(base_directory=None, train=True, evaluate=True):
 		print("AIMED-RL EVALUATION Started!")
 		rl.load_and_evaluate_agent(directory_agent=directory_agent,
 								   agent_information=agent_information,
-								   evaluation_set_directory=EVALUATION_PATH,
+								   evaluation_set_directory=evaluation_path,
 								   malware_detection=malware_detection,
 								   malware_analysis=malware_analysis)
 

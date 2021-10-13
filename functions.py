@@ -1,7 +1,8 @@
 import os
 import csv
-import lief # pip install lief==0.9.0
+import lief  # pip install lief==0.9.0
 import random
+import joblib
 import zipfile
 import requests
 import subprocess
@@ -10,7 +11,6 @@ from hashlib import sha256
 from shutil import copyfile
 import data.manipulate as m
 from time import time, strptime
-from sklearn.externals import joblib 
 from argparse import ArgumentTypeError
 from datetime import datetime, timedelta 
 from data.pefeatures import PEFeatureExtractor
@@ -104,57 +104,57 @@ def actions_vector(actions_dict):
 	actions = {i: act for i, act in enumerate(actions_dict)}
 	return actions	
 
-def build_bytes(input_bytes, pert_number): 
+def build_bytes(input_bytes, total_number_perturbations):
 	'''
-		Compile a malware mutations after perturbations are injected
-		
-		Input: 
+		Compile a malware mutation after perturbations are injected
+
+		Input:
 			input_bytes: input malware in bytes
-			pert_number: number of perturbations injected to keep track in name
+			total_number_perturbations: number of perturbations injected to keep track in name
 	'''
-	try: 
+
+	try:
 		new_binary = lief.PE.parse(list(input_bytes))
+		builder = lief.PE.Builder(new_binary)
+		builder.build_imports(True)
+		builder.patch_imports(True)
+		builder.build()
+		name_mod_file = mod_path+str(total_number_perturbations)+'_m.exe'
+		builder.write(name_mod_file)
 
 	except LIEF_EXCEPTIONS as e:
-		print("No PE file created as LIEF returned:", str(e))
+		print("When parsing & building returned the following error:", str(e))
 		return None
-	
-	new_binary = lief.PE.parse(input_bytes)
-	builder = lief.PE.Builder(new_binary)
-	builder.build_imports(True) 
-	builder.patch_imports(True) 
-	builder.build()
-	name_mod_file = mod_path+str(pert_number)+'_m.exe'
-	builder.write(name_mod_file) 
-	return name_mod_file 
 
-def rec_mod_files(input_bytes, actions, chosen_actions, perturbs, pert_number):
+	return name_mod_file
+
+def rec_mod_files(input_bytes, actions, chosen_actions, inject_perturbation, total_number_perturbations):
+	EXCEPTIONS = (MemoryError, lief.bad_file, lief.bad_format, lief.not_found)
 	'''
 		Recursive function to inject perturbations to input malware sample
-		
-		Input: 
-			input_bytes: input malware in bytes 
-			actions: all possible perturbations 
-			chosen_actions: vector of perturbations to inject
-			perturbs: number of perturbation being injected on this iteration
-			pert_number: total number of perturbations to inject
-	'''
-	
-	if perturbs == -1: 
-		return build_bytes(input_bytes, pert_number)
-	else: 
-		try:
-			# Create an instance of MwManip (manipulate.py)
-			malman = m.MalwareManipulator(input_bytes)
-			# Call one by one all chosen_actions from n to 0
-			#print("Perturbation: {} – Perform action: {}".format(perturbs, actions[chosen_actions[perturbs]]))
-			function = ('malman.' + actions[chosen_actions[perturbs]])
-			# Inject perturbation (check for overhead)
-			mod_bytes = eval(function)(input_bytes)
-		except lief.bad_format as e:
-			print('LIEF returned the following error: ', e)
 
-		return rec_mod_files(mod_bytes, actions, chosen_actions, perturbs-1, pert_number)
+		Input:
+			input_bytes: input malware in bytes
+			actions: all possible perturbations
+			chosen_actions: vector of perturbations to inject
+			inject_perturbation: perturbation being injected on this iteration
+			total_number_perturbations: size of perturbation vector
+	'''
+
+	if inject_perturbation == -1:
+		return build_bytes(input_bytes, total_number_perturbations)
+	else:
+		try:
+			malman = m.MalwareManipulator(input_bytes)
+			next_action = actions[chosen_actions[inject_perturbation]]
+			inject_action = malman.__getattribute__(next_action)
+			mod_bytes = inject_action(input_bytes)
+
+		except EXCEPTIONS as e:
+			print('When injecting perturbation returned the error: ', e)
+			return None
+
+	return rec_mod_files(mod_bytes, actions, chosen_actions, inject_perturbation-1, total_number_perturbations)
 
 #				CALCULATE DIFFERENCE BETWEEN TWO PEs
 
