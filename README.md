@@ -75,6 +75,40 @@ $ ./axmed.py -p 5 -m 1
 
 Observation: Note that an early working version of the AIMED-RL module has been provided along with the paper publication. However, a new and more adjusted release is expected around Q12022. 
 
+## Part 6: How to run AIMED-RL
+### Setup
+0. Create a new virtual (conda) environment and install the requirements from requirements.txt
+1. Make sure *upx* is installed on your system (tested: 3.91, but more recent versions should be fine, too)
+
+2. Please ensure that the main function in axmed.py looks like this:
+```python
+if __name__ == '__main__':
+    scanner = 'GradientBoosting'
+    main('AIMED-RL', scanner)
+```
+
+3. Configure the PARAM_DICT in the *rl.py* file with the options you want AIMED-RL to use.
+
+### Train/Evaluate
+1. Make sure to split your set of malware files in at least two separate sets: A training set (should be located in 
+*samples/unzipped* for example, `PARAM_DICT["malware_path"]`) and an evaluation set (should be located in *samples/evaluate_set*).
+*The evaluation data must never be included in the training data!*
+
+2. Call axmed.py with --train and/or --eval to start the AIMED-RL workflow
+```
+# Train only:
+python3 axmed.py --train 
+# Train and eval:
+python3 axmed.py --train --eval
+# Only evaluate existing agent
+python3 axmed.py -dir your-agent-directory --eval
+# If it doesn't find the training report you may have to copy the corresponding training_report.csv manually to the 
+agent's directory
+```
+
+For more information about AIMED-RL please refer to the [paper](https://link.springer.com/chapter/10.1007/978-3-030-86514-6_3),
+to my blog [article](https://sebief.github.io/it-security/tutorial/aimedRL/) or do not hesitate to create an issue!
+
 ## Citation  
 
 For AIMED-RL: 

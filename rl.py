@@ -23,7 +23,7 @@ from gym import spaces
 
 import functions as f
 from collections import OrderedDict
-import data.pefeatures as pefeatures
+import data.pefeaturesAIMEDRL as pefeatures
 import os
 from datetime import datetime
 import data.manipulate as m
@@ -33,7 +33,7 @@ ACTIONS = f.actions_vector(m.ACTION_TABLE.keys())
 
 # Reward Weight Distributions:
 STANDARD_WEIGHTS = [0.33, 0.33, 0.33]
-INCREMENT_WEIGHTS = [0.5, 0.2, 0.3]  
+INCREMENT_WEIGHTS = [0.5, 0.2, 0.3]
 
 
 # Based on OpenAI Gym Malware (https://github.com/endgameinc/gym-malware/)
@@ -50,26 +50,26 @@ class MalwareEnv(gym.Env):
 
         self.max_turns = PARAM_DICT["max_turns"]
 
-        self.strategy_reset = PARAM_DICT["strategy_reset"]  
-        self.strategy_inject = PARAM_DICT["strategy_inject"]  
+        self.strategy_reset = PARAM_DICT["strategy_reset"]
+        self.strategy_inject = PARAM_DICT["strategy_inject"]
         assert not (self.strategy_reset and self.strategy_inject)
 
         self.turns = 0
 
         # Reward weights:
         self.reward_weights = PARAM_DICT["weights"]
-        assert np.sum(self.reward_weights) <= 1.0  
+        assert np.sum(self.reward_weights) <= 1.0
         self.detected_weight = self.reward_weights[0]
         self.similarity_weight = self.reward_weights[1]
         self.distance_weight = self.reward_weights[2]
 
-        self.reward_punishment = PARAM_DICT["reward_punishment"]
+        self.reward_penalty = PARAM_DICT["reward_penalty"]
 
         self.history = OrderedDict()
 
         # Functions:
         self.detector_function = detection_function
-        self.functionality_function = lambda: (random.randint(0, 10), 0)  
+        self.functionality_function = lambda: (random.randint(0, 10), 0)
         self.similarity_function = f.get_difference
 
         # Malware Features:
@@ -91,7 +91,7 @@ class MalwareEnv(gym.Env):
             bytez = self._take_action(action_index)
             # Update State
             self.feature_space = self.feature_extractor.feature_vector(bytez)
-        except Exception as e:  
+        except Exception as e:
             print('Exception raised: ', e)
             reward = 0
             episode_over = True
@@ -128,7 +128,7 @@ class MalwareEnv(gym.Env):
         self.current_manipulation = f.rec_mod_files(input_bytes=self.original_bytez,
                                                     actions=self.actions,
                                                     chosen_actions=self.actions_taken,
-                                                    inject_perturbation=len(self.actions_taken)-1,
+                                                    inject_perturbation=len(self.actions_taken) - 1,
                                                     total_number_perturbations=len(self.actions_taken))
         return f.readfile(self.current_manipulation)
 
@@ -157,7 +157,7 @@ class MalwareEnv(gym.Env):
         return random.choice(temp_list)
 
     def _calculate_reward(self):
-        max_reward = PARAM_DICT["maximum_reward"]  
+        max_reward = PARAM_DICT["maximum_reward"]
         detected, confidence = self.detector_function(self.current_manipulation.split("/")[-1])  # Use only man. name
         detected_reward = 0
         if not detected:
@@ -168,38 +168,38 @@ class MalwareEnv(gym.Env):
         similarity_reward = self._calculate_similiarity_reward(difference, original_length)
 
         max_perturbations = PARAM_DICT["max_turns"] / 2 if PARAM_DICT["strategy_reset"] or PARAM_DICT["strategy_inject"] \
-            else PARAM_DICT["max_turns"]  
-        factor = max_reward / max_perturbations  
+            else PARAM_DICT["max_turns"]
+        factor = max_reward / max_perturbations
         distance_reward = len(self.actions_taken) * factor
 
         reward = detected_reward * self.detected_weight + similarity_reward * self.similarity_weight \
                  + distance_reward * self.distance_weight
 
-        if self.reward_punishment:
-            punishment = self._calculate_doubled_perturbation_punishment()
+        if self.reward_penalty:
+            penalty = self._calculate_doubled_perturbation_penalty()
 
-            if detected: 
-                reward *= punishment
+            if detected:
+                reward *= penalty
 
         return reward, detected, confidence
 
     def _calculate_similiarity_reward(self, difference, original):
         percent_sim = difference / original
-        percent_best = 0.4  
-        reward_sim = (1 - abs(percent_sim - percent_best)) * PARAM_DICT["maximum_reward"]  
-        return max(0, reward_sim)  
+        percent_best = 0.4
+        reward_sim = (1 - abs(percent_sim - percent_best)) * PARAM_DICT["maximum_reward"]
+        return max(0, reward_sim)
 
-    def _calculate_doubled_perturbation_punishment(self):
-        no_punishment = 1  # no reduction
-        punishment_doubled_once = 0.8 
-        punishment_doubled_twice = 0.6 
+    def _calculate_doubled_perturbation_penalty(self):
+        no_penalty = 1  # no reduction
+        penalty_doubled_once = 0.8
+        penalty_doubled_twice = 0.6
         for action in self.actions_taken:
             if self.actions_taken.count(action) > 2:
-                return punishment_doubled_twice
+                return penalty_doubled_twice
             if self.actions_taken.count(action) > 1:
-                return punishment_doubled_once
+                return penalty_doubled_once
 
-        return no_punishment
+        return no_penalty
 
     def render(self, mode='human', close=False):
         if self.current_malware is not None and self.history[self.current_malware] is not None:
@@ -246,9 +246,9 @@ class RlAgent:
             q_func = chainerrl.q_functions.DistributionalFCStateQFunctionWithDiscreteAction(
                 ndim_obs=self.obs_size,
                 n_actions=self.n_actions,
-                n_atoms=51,  
-                v_min=-10,  
-                v_max=10,  
+                n_atoms=51,
+                v_min=-10,
+                v_max=10,
                 n_hidden_layers=2,
                 n_hidden_channels=64
             )
@@ -271,7 +271,7 @@ class RlAgent:
             explorer = chainerrl.explorers.Boltzmann(T=PARAM_DICT["boltzmann_temperature"])
         elif DQNSettings.NOISY_NETS.name in PARAM_DICT["explorer"]:
             links.to_factorized_noisy(q_func, sigma_scale=0.5)  # Sigma from chainerrl rainbow
-            explorer = chainerrl.explorers.Greedy()  
+            explorer = chainerrl.explorers.Greedy()
         assert explorer is not None
 
         replay_buffer = None
@@ -425,6 +425,7 @@ class Logger:
         It also creates a training or evaluation report at the end that summarizes the results.
         The report also contains the current version of the PARAM_DICT to make the experiments reproducible
     """
+
     def __init__(self, directory_to_save, evaluate):
         self.directory = directory_to_save
         self.adversarial_samples = []
@@ -464,7 +465,8 @@ class Logger:
         type_dict = PARAM_DICT.copy()
         for key in type_dict:
             type_dict[key] = type(PARAM_DICT[key])
-        with open(self.directory + str(PARAM_DICT["name"]) + "_training_report.csv", 'w') as agent_report:
+        report_directory = self.directory + str(PARAM_DICT["name"]) + "_training_report.csv"
+        with open(report_directory, 'w') as agent_report:
             w = csv.DictWriter(agent_report, PARAM_DICT.keys())
             w.writeheader()
             w.writerow(PARAM_DICT)
@@ -479,11 +481,13 @@ class Logger:
             agent_report.write("\nTotal Time: " + str(total_time))
             agent_report.write("\nNumber adversarial samples: " + str(len(self.adversarial_samples)))
             agent_report.close()
+        return report_directory
 
     def save_agent_evaluation_report(self, total_time, number_errored, average_q, average_loss, agent_number_updates):
-        if not os.path.isdir(PARAM_DICT["save_report"] + "evaluating_reports/"):
-            os.mkdir(PARAM_DICT["save_report"] + "evaluating_reports/")
-        with open(str(PARAM_DICT["save_report"] + "evaluating_reports/" + str(PARAM_DICT["name"]) + "_" + str(PARAM_DICT["threshold"]) + "_evaluation_report.csv"), 'w') as agent_report:
+        if not os.path.isdir(self.directory):
+            os.mkdir(self.directory)
+        with open(str(self.directory + str(PARAM_DICT["name"]) + "_" + str(
+                PARAM_DICT["threshold"]) + "_evaluation_report.csv"), 'w') as agent_report:
             w = csv.DictWriter(agent_report, PARAM_DICT.keys())
             w.writeheader()
             w.writerow(PARAM_DICT)
@@ -512,7 +516,7 @@ def _create_env(malware_path, malware_detection_function, malware_analysis_funct
         for i in range(len(samples)):
             samples[i] = malware_path + samples[i]
     except NotADirectoryError:
-        samples = [malware_path] 
+        samples = [malware_path]
 
     env = MalwareEnv(malware_list=samples,
                      detection_function=malware_detection_function,
@@ -525,6 +529,8 @@ def _make_saving_directories():
         if not os.path.isdir(PARAM_DICT["save_report"]):
             os.mkdir(PARAM_DICT["save_report"])
         os.mkdir(PARAM_DICT["save_report"] + "training_reports/")
+    if not os.path.isdir(PARAM_DICT["save_agent"]):
+        os.mkdir(PARAM_DICT["save_agent"])
 
     date_and_time_now = str(datetime.now()).split(".")[0].replace(" ", "-").replace(":", "-")[0:-3]  # no seconds
 
@@ -569,7 +575,7 @@ def train_and_save_agent(malware_detection, malware_analysis):
 
             detected = info["detected"]
             detection_value = info["detected_confidence"]
-            errored = info["errored"]  
+            errored = info["errored"]
             if not errored:
                 logger.log_turn_values(detection_value=detection_value,
                                        reward=reward,
@@ -579,14 +585,14 @@ def train_and_save_agent(malware_detection, malware_analysis):
                                        actions_taken=_map_action_indices_to_actions(env.actions_taken),
                                        malware=env.current_malware)
             elif errored:
-                episode -= 1  
+                episode -= 1
                 print('Episode ignored due to manipulation errors. Restarting..')
 
         if not errored:
             agent.stop_episode_and_train(state, reward, episode_over)
             logger.write_sample_values_to_file()
         else:
-            agent.stop_episode() 
+            agent.stop_episode()
             logger.reset_after_error()
 
         state = env.reset()
@@ -598,11 +604,11 @@ def train_and_save_agent(malware_detection, malware_analysis):
     avg_q = agent.agent.get_statistics()[0][1]
     avg_loss = agent.agent.get_statistics()[1][1]
     number_updates = agent.agent.get_statistics()[2][1]
-    logger.save_agent_training_test_report(total_time=f.time_me(start_time),
-                                           average_q=avg_q,
-                                           average_loss=avg_loss,
-                                           agent_number_updates=number_updates)
-    return directory_logging
+    test_report = logger.save_agent_training_test_report(total_time=f.time_me(start_time),
+                                                         average_q=avg_q,
+                                                         average_loss=avg_loss,
+                                                         agent_number_updates=number_updates)
+    return test_report, directory_agent
 
 
 def _load_agent_information(agent_information):
@@ -642,7 +648,7 @@ def load_and_evaluate_agent(directory_agent, agent_information, evaluation_set_d
                             malware_detection, malware_analysis):
     _load_agent_information(agent_information=agent_information)
 
-    malware_detection_function = lambda sample: malware_detection(sample=sample,
+    malware_detection_function = lambda sample: malware_detection(mutation=sample,
                                                                   snapshot=PARAM_DICT["detection_model"],
                                                                   threshold=PARAM_DICT["threshold"])
     # Env
@@ -675,7 +681,7 @@ def load_and_evaluate_agent(directory_agent, agent_information, evaluation_set_d
 
             detected = info["detected"]
             detection_value = info["detected_confidence"]
-            errored = info["errored"] 
+            errored = info["errored"]
             if not errored:
                 logger.log_turn_values(detection_value=detection_value,
                                        reward=reward,
@@ -721,9 +727,9 @@ PARAM_DICT = {
     "name": "AIMEDRL",
     "seed": 1234,
     "save_report": "db/rl/",
-    "save_agent": "samples/rl/agent/",
-    "malware_path": "samples/malware_set/",
-    "episodes": 2, #1000
+    "save_agent": "db/rl/agent/",
+    "malware_path": "samples/unzipped/",
+    "episodes": 1000,
     "detection_model": "GradientBoosting",
     "threshold": 0.9,
     "max_turns": 10,
@@ -731,7 +737,7 @@ PARAM_DICT = {
     "strategy_inject": False,
     "maximum_reward": 10,
     "weights": STANDARD_WEIGHTS,
-    "reward_punishment": True,
+    "reward_penalty": True,
     "agent": DQNSettings.ALGO_DISTDQN.name,
     "optimizer": DQNSettings.ADAM_OPTIMIZER.name,
     "adam_epsilon": 1e-2,

@@ -13,7 +13,7 @@ import data.manipulate as m
 from time import time, strptime
 from argparse import ArgumentTypeError
 from datetime import datetime, timedelta 
-from data.pefeatures import PEFeatureExtractor
+from data.pefeaturesAIMEDRL import PEFeatureExtractor
 
 
 path = "samples/"
@@ -168,11 +168,11 @@ def get_difference(sample1, sample2):
 	'''	
 	
 	s1_bytes = readfile(sample1)
-	s2_bytes = readfile(mod_path+sample2) 
+	s2_bytes = readfile(sample2)
 	try:
 		# Use -n to compare only until smallest file ends to avoid EOF message		   
 		compare_samples = subprocess.Popen(
-			['cmp', '-l', '-n'+str(min(len(s1_bytes), len(s2_bytes))), sample1, mod_path+sample2],
+			['cmp', '-l', '-n'+str(min(len(s1_bytes), len(s2_bytes))), sample1, sample2],
 			stdout=subprocess.PIPE)
 		out_compare_samples, err_compare_samples = compare_samples.communicate()
 
@@ -512,10 +512,10 @@ def get_score_local(bytez, local_model):
 	
 	# Extract features -- len(features) = 2350
 	feature_extractor =  PEFeatureExtractor() 
-	features = feature_extractor.extract(bytez)
+	features = feature_extractor.feature_vector(bytez)
 
 	# Get malicious score from a single sample
-	score = local_model.predict_proba(features.reshape(1,-1))[0,-1] 
+	score = local_model.predict(features.reshape(1,-1))[0]
 	return score
 
 def str2bool(v):
